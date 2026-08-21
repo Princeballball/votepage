@@ -20,6 +20,34 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def load_env_file(path):
+    """Load simple KEY=VALUE entries without overriding process variables."""
+    if not path.is_file():
+        return
+
+    for raw_line in path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#'):
+            continue
+
+        if line.startswith('export '):
+            line = line[7:].lstrip()
+
+        key, separator, value = line.partition('=')
+        key = key.strip()
+        if not separator or not key:
+            continue
+
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+
+        os.environ.setdefault(key, value)
+
+
+load_env_file(BASE_DIR / '.env')
+
+
 def env_bool(name, default=False):
     value = os.environ.get(name)
     if value is None:
@@ -55,7 +83,12 @@ if not ALLOWED_HOSTS:
             '正式環境必須設定 DJANGO_ALLOWED_HOSTS 環境變數。'
         )
 
+for loopback_host in ('127.0.0.1', 'localhost'):
+    if loopback_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(loopback_host)
+
 CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
+INTERNAL_API_TOKEN = os.environ.get('INTERNAL_API_TOKEN', '')
 
 
 # Application definition
@@ -169,6 +202,7 @@ STORAGES = {
 # TLS is not yet configured or when running locally.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = env_bool('DJANGO_SECURE_SSL_REDIRECT', not DEBUG)
+SECURE_REDIRECT_EXEMPT = [r'^internal/active-users/$']
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_SECURE_HSTS_SECONDS', '31536000'))

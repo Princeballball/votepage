@@ -1,7 +1,10 @@
 import json
+import secrets
 from datetime import datetime, timedelta
+
 from django.contrib.auth.models import User
 from django.test import TestCase
+from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 from .models import Ballot, Option, Poll
@@ -209,3 +212,61 @@ class VoteFlowTests(TestCase):
         response = self.client.get(reverse('poll_list'))
 
         self.assertContains(response, '截止：2026/08/25 18:30')
+
+
+class InternalActiveUsersApiTests(TestCase):
+    def setUp(self):
+        self.token = secrets.token_urlsafe(32)
+        self.user = User.objects.create_user(
+            username='active-user',
+            password=secrets.token_urlsafe(24),
+        )
+
+    def request_with_token(self, token):
+        return self.client.get(
+            reverse('internal_active_users'),
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+
+    def test_valid_token_returns_expected_response_format(self):
+        self.client.force_login(self.user)
+
+        with override_settings(INTERNAL_API_TOKEN=self.token):
+            response = self.request_with_token(self.token)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'active_users': 1})
+
+    def test_missing_configured_token_fails_closed(self):
+        with override_settings(INTERNAL_API_TOKEN=''):
+            response = self.request_with_token('')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_missing_or_wrong_authorization_is_rejected(self):
+        with override_settings(INTERNAL_API_TOKEN=self.token):
+            missing_response = self.client.get(reverse('internal_active_users'))
+            wrong_response = self.request_with_token(secrets.token_urlsafe(32))
+
+        self.assertEqual(missing_response.status_code, 401)
+        self.assertEqual(wrong_response.status_code, 401)
+
+    def test_non_ascii_token_is_compared_as_utf8_bytes(self):
+        non_ascii_token = ''.join(chr(code) for code in (28204, 35430, 23494, 30908))
+
+        with override_settings(INTERNAL_API_TOKEN=non_ascii_token):
+            response = self.request_with_token(non_ascii_token)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {'active_users': 0})
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_loopback_http_request_is_not_redirected_to_https(self):
+        with override_settings(INTERNAL_API_TOKEN=self.token):
+            response = self.client.get(
+                reverse('internal_active_users'),
+                HTTP_HOST='127.0.0.1:8001',
+                HTTP_AUTHORIZATION=f'Bearer {self.token}',
+            )
+
+        self.assertEqual(response.status_code, 200)

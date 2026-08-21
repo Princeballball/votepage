@@ -20,12 +20,13 @@ gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
 
 ## 3. 必填環境變數
 
-依照 `.env.example` 在部署平台後台設定：
+在部署平台後台設定：
 
 - `DJANGO_SECRET_KEY`：至少 50 字元的隨機密鑰，不可提交到 Git。
 - `DJANGO_ALLOWED_HOSTS`：只填網域，不含 `https://`。
 - `DJANGO_CSRF_TRUSTED_ORIGINS`：完整 HTTPS 網址。
 - `DJANGO_DEBUG=false`
+- `INTERNAL_API_TOKEN`：Discord Bot 呼叫內部 API 使用的私密 Token。
 
 產生密鑰：
 

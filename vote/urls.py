@@ -1,7 +1,10 @@
 from django.urls import path
+
 from . import views
+from .internal_api import active_users
 
 urlpatterns = [
+    path('internal/active-users/', active_users, name='internal_active_users'),
     path('', views.home, name='home'),
     path('register/', views.register, name='register'),
     path('login/', views.login_view, name='login'),
