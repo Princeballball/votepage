@@ -105,3 +105,8 @@ db.sqlite3
 
 # pyenv
 # .python-version
+.env
+staticfiles/
+*.sqlite3-journal
+__pycache__/
+*.py[cod]
