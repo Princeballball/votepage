@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="page-heading">
+        <h1>我的投票</h1>
+        <a class="button primary" href="{% url 'poll_create' %}">＋ 建立投票</a>
+    </div>
+
+    {% if polls %}
+        <div class="poll-list">
+            {% for poll in polls %}
+                <article>
+                    <div>
+                        <h2>{{ poll.title }}</h2>
+                        <p>
+                            {{ poll.get_poll_type_display }}
+                            · {{ poll.voter_count }} 人投票
+                        </p>
+                        <p class="poll-deadline">
+                            {% if poll.deadline %}
+                                截止：{{ poll.deadline|date:'Y/m/d H:i' }}
+                            {% else %}
+                                無截止時間
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <div class="row-actions">
+                        <span class="status {% if poll.ended %}closed{% endif %}">
+                            {% if poll.ended %}已關閉{% else %}進行中{% endif %}
+                        </span>
+                        <a class="button secondary" href="{% url 'poll_detail' poll.pk %}">查看</a>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty">
+            <h2>還沒有投票</h2>
+            <p>建立一份投票，邀請大家一起做決定。</p>
+            <a class="button primary" href="{% url 'poll_create' %}">建立第一份投票</a>
+        </div>
+    {% endif %}
+{% endblock %}

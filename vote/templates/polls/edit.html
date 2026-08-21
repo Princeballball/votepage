@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}修改投票｜投個時間{% endblock %}
+
+{% block content %}
+    <h1>修改投票</h1>
+
+    {% if errors %}
+        <div class="form-error">
+            {% for error in errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" id="edit-poll-form">
+        {% csrf_token %}
+
+        <section class="form-section">
+            <h2>基本設定</h2>
+            <label>
+                投票標題
+                <input
+                    name="title"
+                    maxlength="200"
+                    value="{{ posted.title|default:poll.title }}"
+                    required
+                >
+            </label>
+            <p class="edit-help">投票類型建立後不會改變。</p>
+        </section>
+
+        <section class="form-section">
+            <div class="section-head">
+                <h2>選項</h2>
+                <button type="button" class="button secondary" id="add-edit-option">
+                    ＋ 新增選項
+                </button>
+            </div>
+
+            <p class="edit-help">刪除已有選項時，該選項原本收到的票也會移除。</p>
+
+            <div id="edit-options">
+                {% for option in poll.options.all %}
+                    <div class="preview-item">
+                        <input
+                            class="edit-option-text"
+                            data-option-id="{{ option.pk }}"
+                            value="{{ option.display_text }}"
+                            maxlength="200"
+                        >
+                        <button type="button" class="remove edit-option-remove">刪除</button>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="form-section">
+            <h2>其他設定</h2>
+
+            <label class="check">
+                <input
+                    type="checkbox"
+                    name="multiple"
+                    {% if poll.multiple %}checked{% endif %}
+                >
+                可以選擇多個選項
+            </label>
+
+            <label class="check">
+                <input
+                    type="checkbox"
+                    name="named_voting"
+                    {% if poll.named_voting %}checked{% endif %}
+                >
+                記名投票（結果會顯示投票者名稱）
+            </label>
+
+            <label class="check">
+                <input
+                    type="checkbox"
+                    name="allow_voter_options"
+                    {% if poll.allow_voter_options %}checked{% endif %}
+                >
+                允許投票者新增選項
+            </label>
+
+            <fieldset>
+                <legend>投票截止時間（選填）</legend>
+                <div class="deadline-fields">
+                    <label>
+                        截止日期
+                        <input
+                            type="date"
+                            name="deadline_date"
+                            value="{% if poll.deadline %}{{ poll.deadline|date:'Y-m-d' }}{% endif %}"
+                        >
+                    </label>
+                    <label>
+                        截止時間
+                        <input
+                            type="time"
+                            name="deadline_time"
+                            step="60"
+                            value="{% if poll.deadline %}{{ poll.deadline|date:'H:i' }}{% endif %}"
+                        >
+                    </label>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>結果顯示</legend>
+                <label class="check">
+                    <input
+                        type="radio"
+                        name="result_visibility"
+                        value="after_vote"
+                        {% if poll.result_visibility == 'after_vote' %}checked{% endif %}
+                    >
+                    投票後即可看
+                </label>
+                <label class="check">
+                    <input
+                        type="radio"
+                        name="result_visibility"
+                        value="after_close"
+                        {% if poll.result_visibility == 'after_close' %}checked{% endif %}
+                    >
+                    截止後才可看
+                </label>
+            </fieldset>
+        </section>
+
+        <input type="hidden" name="options_json" id="edit-options-json">
+
+        <div class="form-actions">
+            <a class="button secondary" href="{% url 'poll_detail' poll.pk %}">取消</a>
+            <button class="primary" type="submit">儲存修改</button>
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'edit.js' %}"></script>
+{% endblock %}

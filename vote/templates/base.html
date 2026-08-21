@@ -1,0 +1,42 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}投個時間{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'app.css' %}">
+</head>
+<body>
+    <header>
+        <nav>
+            <a class="brand" href="{% url 'home' %}">投個時間</a>
+
+            <div class="navlinks">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'poll_list' %}">我的投票</a>
+                    <a href="{% url 'poll_create' %}">建立投票</a>
+                    <span class="username">{{ user.username }}</span>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button class="link-button" type="submit">登出</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'login' %}">登入</a>
+                    <a href="{% url 'register' %}">註冊</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        {% for message in messages %}
+            <div class="notice {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ poll.title }}｜投個時間{% endblock %}
+
+{% block content %}
+    <div class="detail-head">
+        <div>
+            <h1>{{ poll.title }}</h1>
+            <p>
+                建立者：{{ poll.creator.username }}
+                · {% if poll.multiple %}可複選{% else %}單選{% endif %}
+                · {% if poll.named_voting %}記名投票{% else %}不記名投票{% endif %}
+                {% if poll.deadline %}
+                    · 截止 {{ poll.deadline|date:'Y/m/d H:i' }}
+                {% endif %}
+            </p>
+        </div>
+
+        <button class="button secondary" type="button" id="copy-link">
+            複製投票連結
+        </button>
+    </div>
+
+    {% if poll.deadline and not poll.is_closed %}
+        <section
+            class="countdown"
+            id="deadline-countdown"
+            data-created="{{ poll.created_at|date:'U' }}"
+            data-deadline="{{ poll.deadline|date:'U' }}"
+            data-server-now="{% now 'U' %}"
+        >
+            <div class="countdown-line">
+                <span>距離投票截止</span>
+                <strong id="countdown-text">計算中…</strong>
+            </div>
+            <div
+                class="countdown-progress"
+                role="progressbar"
+                aria-label="投票剩餘時間"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+            >
+                <i id="countdown-bar"></i>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if poll.ended %}
+        <div class="notice">這份投票已結束。</div>
+    {% endif %}
+
+    <form method="post" class="vote-form">
+        {% csrf_token %}
+
+        <div class="option-results">
+            {% for option in options %}
+                <label class="vote-option">
+                    <span class="option-line">
+                        <input
+                            type="{% if poll.multiple %}checkbox{% else %}radio{% endif %}"
+                            name="options"
+                            value="{{ option.pk }}"
+                            {% if option.pk in selected %}checked{% endif %}
+                            {% if poll.ended %}disabled{% endif %}
+                        >
+                        <span>{{ option.display_text }}</span>
+                        {% if can_results %}
+                            <strong>{{ option.vote_count }}</strong>
+                        {% endif %}
+                    </span>
+
+                    {% if can_results %}
+                        <span class="progress">
+                            <i style="width: {{ option.percent }}%"></i>
+                        </span>
+                        {% if poll.named_voting and option.voter_names %}
+                            <span class="voter-names">
+                                {{ option.voter_names|join:'、' }}
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </label>
+            {% endfor %}
+        </div>
+
+        {% if not poll.ended %}
+            <button class="primary" type="submit">
+                {% if selected %}更新我的投票{% else %}送出投票{% endif %}
+            </button>
+        {% endif %}
+    </form>
+
+    {% if poll.allow_voter_options and not poll.ended %}
+        {% if user.is_authenticated %}
+            <form
+                method="post"
+                action="{% url 'poll_option_add' poll.pk %}"
+                class="add-option-form"
+            >
+                {% csrf_token %}
+                <label>
+                    新增其他選項
+                    <span class="add-option-row">
+                        <input
+                            name="display_text"
+                            maxlength="200"
+                            placeholder="輸入選項內容"
+                            required
+                        >
+                        <button class="button secondary" type="submit">新增</button>
+                    </span>
+                </label>
+            </form>
+        {% else %}
+            <p class="summary">
+                <a href="{% url 'login' %}?next={{ request.path }}">登入後可新增選項</a>
+            </p>
+        {% endif %}
+    {% endif %}
+
+    {% if can_results %}
+        <p class="summary">共 {{ voter_count }} 人投票</p>
+    {% endif %}
+
+    {% if user == poll.creator and not poll.ended %}
+        <div class="owner-actions">
+            <a class="button secondary" href="{% url 'poll_edit' poll.pk %}">
+                修改投票
+            </a>
+        </div>
+        <form
+            method="post"
+            action="{% url 'poll_close' poll.pk %}"
+            class="danger-zone"
+            onsubmit="return confirm('確定要關閉投票嗎？關閉後不能再投票。')"
+        >
+            {% csrf_token %}
+            <button class="danger" type="submit">關閉投票</button>
+        </form>
+    {% endif %}
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.querySelector('#copy-link').onclick = async function () {
+            await navigator.clipboard.writeText(location.href);
+            this.textContent = '已複製';
+        };
+
+        const countdown = document.querySelector('#deadline-countdown');
+
+        if (countdown) {
+            const createdAt = Number(countdown.dataset.created) * 1000;
+            const deadline = Number(countdown.dataset.deadline) * 1000;
+            const serverNow = Number(countdown.dataset.serverNow) * 1000;
+            const clockOffset = serverNow - Date.now();
+            const text = document.querySelector('#countdown-text');
+            const bar = document.querySelector('#countdown-bar');
+            const progress = countdown.querySelector('[role="progressbar"]');
+            let timer = null;
+
+            function renderCountdown() {
+                const now = Date.now() + clockOffset;
+                const remaining = Math.max(0, deadline - now);
+                const total = Math.max(1, deadline - createdAt);
+                const remainingPercent = Math.max(0, Math.min(100, remaining / total * 100));
+
+                const totalSeconds = Math.floor(remaining / 1000);
+                const days = Math.floor(totalSeconds / 86400);
+                const hours = Math.floor(totalSeconds % 86400 / 3600);
+                const minutes = Math.floor(totalSeconds % 3600 / 60);
+                const seconds = totalSeconds % 60;
+                const parts = [];
+
+                if (days) parts.push(`${days} 天`);
+                if (days || hours) parts.push(`${hours} 小時`);
+                parts.push(`${minutes} 分 ${seconds} 秒`);
+
+                text.textContent = remaining > 0 ? parts.join(' ') : '已截止';
+                bar.style.width = `${remainingPercent}%`;
+                progress.setAttribute('aria-valuenow', Math.round(remainingPercent));
+
+                if (remaining <= 0) {
+                    countdown.classList.add('expired');
+                    if (timer) window.clearInterval(timer);
+                }
+            }
+
+            renderCountdown();
+            if (deadline > serverNow) {
+                timer = window.setInterval(renderCountdown, 1000);
+            }
+        }
+    </script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}登入｜投個時間{% endblock %}
+
+{% block content %}
+    <section class="auth">
+        <h1>登入</h1>
+
+        {% if error %}
+            <div class="form-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <label>
+                使用者名稱或 Email
+                <input name="identity" autocomplete="username" required autofocus>
+            </label>
+
+            <label>
+                密碼
+                <input type="password" name="password" autocomplete="current-password" required>
+            </label>
+
+            <button class="primary wide" type="submit">登入</button>
+        </form>
+
+        <p class="muted">
+            還沒有帳號？<a href="{% url 'register' %}">前往註冊</a>
+        </p>
+    </section>
+{% endblock %}

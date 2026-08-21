@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}建立投票｜投個時間{% endblock %}
+
+{% block content %}
+    <h1>建立投票</h1>
+
+    {% if errors %}
+        <div class="form-error">
+            {% for error in errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" id="poll-form">
+        {% csrf_token %}
+
+        <section class="form-section">
+            <h2>基本設定</h2>
+
+            <label>
+                投票標題
+                <input
+                    name="title"
+                    maxlength="200"
+                    placeholder="例如：下週哪個時間大家方便？"
+                    value="{{ posted.title }}"
+                    required
+                >
+            </label>
+
+            <fieldset>
+                <legend>投票類型</legend>
+                <div class="segmented">
+                    <label>
+                        <input type="radio" name="poll_type" value="text" checked>
+                        一般選項
+                    </label>
+                    <label>
+                        <input type="radio" name="poll_type" value="time">
+                        時間選項
+                    </label>
+                </div>
+            </fieldset>
+        </section>
+
+        <section id="text-builder" class="form-section">
+            <div class="section-head">
+                <h2>選項</h2>
+                <button type="button" class="button secondary" id="add-text">
+                    ＋ 新增選項
+                </button>
+            </div>
+            <div id="text-options"></div>
+        </section>
+
+        <section id="time-builder" class="form-section hidden">
+            <h2>時間選項快速建立</h2>
+
+            <fieldset>
+                <legend>建立方式</legend>
+                <div class="segmented">
+                    <label>
+                        <input type="radio" name="date_mode" value="weekday" checked>
+                        星期
+                    </label>
+                    <label>
+                        <input type="radio" name="date_mode" value="date">
+                        指定日期
+                    </label>
+                </div>
+            </fieldset>
+
+            <div id="weekday-mode">
+                <div class="weekdays">
+                    <label><input type="checkbox" value="1">禮拜一</label>
+                    <label><input type="checkbox" value="2">禮拜二</label>
+                    <label><input type="checkbox" value="3">禮拜三</label>
+                    <label><input type="checkbox" value="4">禮拜四</label>
+                    <label><input type="checkbox" value="5">禮拜五</label>
+                    <label><input type="checkbox" value="6">禮拜六</label>
+                    <label><input type="checkbox" value="7">禮拜日</label>
+                </div>
+
+                <div class="quick">
+                    <button type="button" data-days="1,2,3,4,5">平日</button>
+                    <button type="button" data-days="6,7">週末</button>
+                    <button type="button" data-days="">全部清除</button>
+                </div>
+            </div>
+
+            <div id="date-mode" class="hidden">
+                <div class="inline">
+                    <label>
+                        日期
+                        <input id="date-input" type="date">
+                    </label>
+                    <button type="button" class="button secondary" id="add-date">
+                        ＋ 加入日期
+                    </button>
+                </div>
+                <div id="dates" class="chips"></div>
+            </div>
+
+            <h3>時段</h3>
+            <div id="slots"></div>
+            <button type="button" class="button secondary" id="add-slot">
+                ＋ 新增時段
+            </button>
+
+            <details>
+                <summary>快速切成連續時段</summary>
+                <div class="splitter">
+                    <label>
+                        開始
+                        <input type="time" id="split-start" value="10:00">
+                    </label>
+                    <label>
+                        結束
+                        <input type="time" id="split-end" value="18:00">
+                    </label>
+                    <label>
+                        每段
+                        <span>
+                            <input
+                                type="number"
+                                id="split-hours"
+                                min="0.5"
+                                step="0.5"
+                                value="2"
+                            >
+                            小時
+                        </span>
+                    </label>
+                    <button type="button" class="button secondary" id="split">
+                        切成時段
+                    </button>
+                </div>
+            </details>
+
+            <div class="generate">
+                <button type="button" class="primary" id="generate">
+                    產生時間選項
+                </button>
+                <span id="generate-note"></span>
+            </div>
+        </section>
+
+        <section class="form-section">
+            <div class="section-head">
+                <h2>已建立的選項（<span id="option-count">0</span>）</h2>
+                <button type="button" class="link-danger" id="clear-options">
+                    全部清除
+                </button>
+            </div>
+            <div id="preview"></div>
+            <p class="field-error" id="duplicate-note"></p>
+        </section>
+
+        <section class="form-section">
+            <h2>其他設定</h2>
+
+            <label class="check">
+                <input type="checkbox" name="multiple" id="multiple">
+                可以選擇多個選項
+            </label>
+
+            <label class="check">
+                <input type="checkbox" name="named_voting">
+                記名投票（結果會顯示投票者名稱）
+            </label>
+
+            <label class="check">
+                <input type="checkbox" name="allow_voter_options">
+                允許投票者新增選項
+            </label>
+
+            <fieldset>
+                <legend>投票截止時間（選填）</legend>
+                <div class="deadline-fields">
+                    <label>
+                        截止日期
+                        <input
+                            type="date"
+                            name="deadline_date"
+                            value="{{ posted.deadline_date }}"
+                        >
+                    </label>
+                    <label>
+                        截止時間
+                        <input
+                            type="time"
+                            name="deadline_time"
+                            step="60"
+                            value="{{ posted.deadline_time }}"
+                        >
+                    </label>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend>結果顯示</legend>
+                <label class="check">
+                    <input
+                        type="radio"
+                        name="result_visibility"
+                        value="after_vote"
+                        checked
+                    >
+                    投票後即可看
+                </label>
+                <label class="check">
+                    <input
+                        type="radio"
+                        name="result_visibility"
+                        value="after_close"
+                    >
+                    截止後才可看
+                </label>
+            </fieldset>
+        </section>
+
+        <input type="hidden" name="options_json" id="options-json">
+
+        <div class="form-actions">
+            <a class="button secondary" href="{% url 'poll_list' %}">取消</a>
+            <button class="primary" type="submit">建立投票</button>
+        </div>
+    </form>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{% static 'create.js' %}"></script>
+{% endblock %}
